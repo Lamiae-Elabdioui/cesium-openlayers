@@ -1,7 +1,10 @@
 **Web GIS Project - 3D Viewer with Cesium and 2D Viewer with OpenLayers**
 
 
+
 ***Description***
+
+
 This project involves developing two viewers for geospatial data visualization:
 
 
@@ -15,6 +18,8 @@ This project involves developing two viewers for geospatial data visualization:
 The project also includes a flood animation that will be shown on both viewers.
 
 ***Features***
+
+
 3D Viewer with Cesium: Display geospatial data in 3D.
 
 
