@@ -1,4 +1,4 @@
-Web GIS Project - 3D Viewer with Cesium and 2D Viewer with OpenLayers
+**Web GIS Project - 3D Viewer with Cesium and 2D Viewer with OpenLayers**
 Description
 This project involves developing two viewers for geospatial data visualization:
 
