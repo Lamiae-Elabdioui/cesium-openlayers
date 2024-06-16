@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no" />
+  <meta name="description" content="Worldwide 3D buildings with rich metadata from OpenStreetMap." />
+  <meta name="cesium-sandcastle-labels" content="Beginner, Showcases, ion Assets" />
+  <title>Cesium Demo</title>
+  <script type="text/javascript" src="../Sandcastle-header.js"></script>
+  <script type="text/javascript" src="../../../Build/CesiumUnminified/Cesium.js" nomodule></script>
+  <script type="module" src="../load-cesium-es6.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/ol@latest/dist/ol.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@latest/ol.css">
+  <style>
+    @import url(../templates/bucket.css);
+
+    body,
+    html {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+
+    #cesiumContainer,
+    #olMap {
+      width: 50%;
+      height: 100vh;
+      float: left;
+    }
+    iframe {
+      position: absolute;
+      bottom: 0;
+      right: 0;
+      margin: 20px; /* Adjust margin as needed */
+      z-index: 9999;
+      .centered {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+  }
+    }
+  </style>
+</head>
+
+<body class="sandcastle-loading" data-sandcastle-bucket="bucket-requirejs.html">
+  <div id="cesiumContainer"></div>
+  <div id="olMap"></div>
+  <div id="loadingOverlay">
+    <h1>Loading...</h1>
+  </div>
+  <div id="toolbar"></div>
+  <script id="cesium_sandcastle_script">
+    window.startup = async function (Cesium) {
+      "use strict";
+      //Sandcastle_Begin
+
+      // Your Cesium Ion Access Token
+      Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJjMWZjN2NhMC00ODI1LTRiMTItOTE1Ni0yZmJkNmQ5MDVkZjMiLCJpZCI6MjE2MzkxLCJpYXQiOjE3MTYxOTE1NzR9.keDQjXMYftkd-gT4IiN35e7gAG4xe0QZ8PNem0hx_Ac';
+
+      // Initialize the Cesium Viewer
+      var viewer = new Cesium.Viewer('cesiumContainer');
+      // Function to add distance labels between two points
+      function addDistanceLabel(point1, point2, height) {
+        // Implement your logic here for adding distance labels
+        // Example implementation:
+        const ellipsoid = viewer.scene.globe.ellipsoid;
+
+        // Calculate distances or other relevant information
+        // Example code snippet (adjust as per your requirements):
+        const distance = Cesium.Cartesian3.distance(point1.position, point2.position);
+
+        // Example of adding a label in Cesium
+        const label = {
+          text: `Distance: ${distance.toFixed(2)} meters`,
+          fillColor: Cesium.Color.YELLOW,
+          font: '16px sans-serif',
+          pixelOffset: new Cesium.Cartesian2(0, -50), // Offset to adjust label position
+          showBackground: true,
+          backgroundColor: Cesium.Color.BLACK.withAlpha(0.7),
+          horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
+          verticalOrigin: Cesium.VerticalOrigin.BOTTOM
+        };
+
+        const midpoint = Cesium.Cartesian3.midpoint(point1.position, point2.position, new Cesium.Cartesian3());
+        viewer.entities.add({
+          position: midpoint,
+          label: label
+        });
+      }
+
+
+
+
+
+
+      // Load the GeoJSON data for buildings and roads.
+      var geoJsonUrl = 'http://localhost:8080/3d/PRJT/Tileset/Batiments.geojson';
+      var geoJsonUrlVoirie = 'http://localhost:8080/3d/PRJT/Tileset/Voirie.geojson';
+
+      // Function to set the Elevation for entities
+      function setElevation(dataSource) {
+        var entities = dataSource.entities.values;
+        for (var i = 0; i < entities.length; i++) {
+          var entity = entities[i];
+          if (entity.polygon) {
+            var elevation = entity.properties.Elevation.getValue(Cesium.JulianDate.now());
+            var positions = entity.polygon.hierarchy.getValue(Cesium.JulianDate.now()).positions;
+            for (var j = 0; j < positions.length; j++) {
+              var cartographic = Cesium.Cartographic.fromCartesian(positions[j]);
+              cartographic.height = elevation;
+              positions[j] = Cesium.Cartesian3.fromRadians(cartographic.longitude, cartographic.latitude, cartographic.height);
+            }
+            entity.polygon.hierarchy = new Cesium.PolygonHierarchy(positions);
+            // Set extrudedHeight to give the buildings a 3D appearance
+            entity.polygon.extrudedHeight = elevation + 20; // Adjust 20 to desired building height
+          }
+        }
+      }
+
+      // Add the buildings GeoJSON data source to the Cesium viewer with color options.
+      viewer.dataSources.add(Cesium.GeoJsonDataSource.load(geoJsonUrl, {
+        clampToGround: false,
+        fill: Cesium.Color.BLUE.withAlpha(0.5), // Change to desired color
+        stroke: Cesium.Color.YELLOW, // Change to desired color
+        strokeWidth: 3
+      })).then(function (dataSource) {
+        setElevation(dataSource);
+        viewer.flyTo(dataSource);
+      }).catch(function (error) {
+        console.error('Error loading buildings GeoJSON data: ', error);
+      });
+
+      // Add the roads GeoJSON data source to the Cesium viewer with color options.
+      viewer.dataSources.add(Cesium.GeoJsonDataSource.load(geoJsonUrlVoirie, {
+        clampToGround: false,
+        stroke: Cesium.Color.BLACK, // Change to desired color
+        strokeWidth: 3
+      })).then(function (dataSource) {
+        viewer.flyTo(dataSource);
+      }).catch(function (error) {
+        console.error('Error loading roads GeoJSON data: ', error);
+      });
+
+      // Add WMS layer
+      var wmsLayerInondations1 = new Cesium.WebMapServiceImageryProvider({
+        url: 'http://localhost:8080/geoserver/SIG2/wms',
+        layers: 'SIG2:Inondations1',
+        parameters: {
+          transparent: true,
+          format: 'image/png'
+        }
+      });
+      viewer.imageryLayers.addImageryProvider(wmsLayerInondations1);
+
+      // Add building height measurement tool
+      const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+      handler.setInputAction(function (movement) {
+        const pickedFeature = viewer.scene.pick(movement.position);
+        if (Cesium.defined(pickedFeature) && pickedFeature.id && pickedFeature.id.polygon) {
+          const cartographic = Cesium.Cartographic.fromCartesian(pickedFeature.id.polygon.hierarchy.getValue(Cesium.JulianDate.now()).positions[0]);
+          const height = cartographic.height;
+          alert(`Building Height: ${height.toFixed(2)} meters`);
+        }
+      }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+
+      // Initialize OpenLayers map
+      const olMap = new ol.Map({
+        target: 'olMap',
+        controls: [
+          new ol.control.Zoom(),
+          new ol.control.ScaleLine(),
+          new ol.control.OverviewMap(),
+          new ol.control.MousePosition(),
+          new ol.control.FullScreen()
+        ],
+        layers: [
+          new ol.layer.Tile({
+            source: new ol.source.OSM()
+          }),
+          new ol.layer.Tile({
+            source: new ol.source.TileWMS({
+              url: 'http://localhost:8080/geoserver/SIG2/wms',
+              params: {
+                'LAYERS': ["Batiments", "Voirie", "Inondations1", "Batiments_Risqués"],
+                'TRANSPARENT': 'true',
+                'WIDTH': 640,
+                'HEIGHT': 480
+              }
+            })
+          })
+        ],
+        view: new ol.View({
+          center: ol.proj.fromLonLat([-7.61327, 33.60049]),
+          zoom: 8
+        })
+      });
+
+      // Synchronize Cesium with OpenLayers
+      function syncToOL() {
+        const cesiumCamera = viewer.camera;
+        const center = Cesium.Cartographic.fromCartesian(cesiumCamera.position);
+        const longitude = Cesium.Math.toDegrees(center.longitude);
+        const latitude = Cesium.Math.toDegrees(center.latitude);
+        const height = center.height;
+
+        const olZoom = olMap.getView().getZoomForResolution(height / 256.0);
+        olMap.getView().setCenter(ol.proj.fromLonLat([longitude, latitude]));
+        olMap.getView().setZoom(olZoom);
+      }
+
+      // Synchronize OpenLayers with Cesium
+      function syncToCesium() {
+        const olView = olMap.getView();
+        const center = ol.proj.toLonLat(olView.getCenter());
+        const zoom = olView.getZoom();
+        const resolution = olView.getResolution();
+        const height = resolution * 256.0;
+
+        viewer.camera.setView({
+          destination: Cesium.Cartesian3.fromDegrees(center[0], center[1], height)
+        });
+      }
+
+      // Synchronize Cesium camera events
+      viewer.camera.changed.addEventListener(syncToOL);
+
+      // Synchronize OpenLayers view events
+      olMap.getView().on('change:center', syncToCesium);
+      olMap.getView().on('change:resolution', syncToCesium);
+
+      // Function to add distance measurement tool in OpenLayers
+      function addDistanceMeasurement() {
+        const source = new ol.source.Vector();
+        const vector = new ol.layer.Vector({
+          source: source,
+          style: new ol.style.Style({
+            fill: new ol.style.Fill({
+              color: 'rgba(255, 255, 255, 0.2)',
+            }),
+            stroke: new ol.style.Stroke({
+              color: '#ffcc33',
+              width: 2,
+            }),
+            image: new ol.style.Circle({
+              radius: 7,
+              fill: new ol.style.Fill({
+                color: '#ffcc33',
+              }),
+            }),
+          }),
+        });
+        olMap.addLayer(vector);
+
+        const typeSelect = document.createElement('select');
+        typeSelect.id = 'type';
+        const optionLine = document.createElement('option');
+        optionLine.value = 'LineString';
+        optionLine.text = 'Measure Distance';
+        typeSelect.appendChild(optionLine);
+        document.body.appendChild(typeSelect);
+
+        let draw; // global so we can remove it later
+        function addInteraction() {
+          const type = typeSelect.value;
+          draw = new ol.interaction.Draw({
+            source: source,
+            type: type,
+          });
+          olMap.addInteraction(draw);
+
+          draw.on('drawend', function (event) {
+            const feature = event.feature;
+            const geometry = feature.getGeometry();
+            let output;
+            if (geometry.getType() === 'Polygon') {
+              const area = ol.sphere.getArea(geometry);
+              output = formatArea(area);
+            } else if (geometry.getType() === 'LineString') {
+              const length = ol.sphere.getLength(geometry);
+              output = formatLength(length);
+            }
+            alert(output);
+          });
+        }
+
+        /**
+         * Format length output.
+         * @param {number} length The length to format.
+         * @return {string} The formatted length.
+         */
+        const formatLength = function (length) {
+          let output;
+          if (length > 100) {
+            output = Math.round((length / 1000) * 100) / 100 + ' ' + 'km';
+          } else {
+            output = Math.round(length * 100) / 100 + ' ' + 'm';
+          }
+          return output;
+        };
+
+        /**
+         * Format area output.
+         * @param {number} area The area to format.
+         * @return {string} The formatted area.
+         */
+        const formatArea = function (area) {
+          let output;
+          if (area > 10000) {
+            output = Math.round((area / 1000000) * 100) / 100 + ' ' + 'km²';
+          } else {
+            output = Math.round(area * 100) / 100 + ' ' + 'm²';
+          }
+          return output;
+        };
+
+        typeSelect.onchange = function () {
+          olMap.removeInteraction(draw);
+          addInteraction();
+        };
+
+        addInteraction();
+      }
+
+      addDistanceMeasurement();
+
+      //Sandcastle_End
+      Sandcastle.finishedLoading();
+    };
+
+    if (window.Cesium && !window.Cesium.useDefaultIonLoader) {
+      window.startup(Cesium);
+    }
+  </script>
+  <iframe src="http://localhost:8080/3d/PRJT/Animation-unscreen.gif" frameborder="0" allowfullscreen></iframe>
+</body>
+
+</html>
